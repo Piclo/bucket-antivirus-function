@@ -18,6 +18,8 @@ lambda_output_file=/opt/app/build/lambda.zip
 
 set -e
 
+mkdir -p "${lambda_output_file}"
+
 yum install -y yum-utils cpio python27-pip python-pip zip
 pip install --no-cache-dir virtualenv
 virtualenv env
