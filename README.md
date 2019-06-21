@@ -28,6 +28,7 @@ or INFECTED, along with the date and time of the scan.
 - Object metadata is updated to reflect the result of the scan (optional)
 - Metrics are sent to [DataDog](https://www.datadoghq.com/) (optional)
 - Scan results are published to a SNS topic (optional)
+- Files found to be INFECTED are automatically deleted (optional)
 
 ## Installation
 
@@ -38,7 +39,7 @@ the [amazonlinux](https://hub.docker.com/_/amazonlinux/) [Docker](https://www.do
  image.  The resulting archive will be built at `build/lambda.zip`.  This file will be
  uploaded to AWS for both Lambda functions below.
 
-### AV Defintion Bucket
+### AV Definition Bucket
 
 Create an s3 bucket to store current antivirus definitions.  This
 provides the fastest download speeds for the scanner.  This bucket can
@@ -74,19 +75,11 @@ this every 3 hours to stay protected from the latest threats.
 1. Create the archive using the method in the
  [Build from Source](#build-from-source) section.
 2. From the AWS Lambda Dashboard, click **Create function**
-3. Choose **Author from scratch** on the *Select Blueprint* page
-4. Create a new trigger of type **CloudWatch Event** using `rate(3 hours)`
-for the **Schedule expression**.  Be sure to check **Enable trigger**
-5. Name your function `bucket-antivirus-update` when prompted on the
+3. Choose **Author from scratch** on the *Create function* page
+4. Name your function `bucket-antivirus-update` when prompted on the
 *Configure function* step.
-6. Set *Runtime* to `Python 2.7`
-7. Choose **Upload a ZIP file** for *Code entry type* and select the archive
-downloaded in step 1.
-8. Add a single environment variable named `AV_DEFINITION_S3_BUCKET`
-and set its value to the name of the bucket created to store your AV
-definitions.
-9. Set *Lambda handler* to `update.lambda_handler`
-10.  Create a new role name `bucket-antivirus-update` that uses the
+5. Set *Runtime* to `Python 2.7`
+6.  Create a new role name `bucket-antivirus-update` that uses the
 following policy document
 ```json
 {
@@ -115,9 +108,18 @@ following policy document
    ]
 }
 ```
-11. Before finishing, set *Timeout* to **5 minutes** and *Memory* to
+7. Click next to go to the Configuration page
+8. Add a trigger from the left of **CloudWatch Event** using `rate(3 hours)`
+for the **Schedule expression**.  Be sure to check **Enable trigger**
+9. Choose **Upload a ZIP file** for *Code entry type* and select the archive
+downloaded in step 1.
+10. Add a single environment variable named `AV_DEFINITION_S3_BUCKET`
+and set its value to the name of the bucket created to store your AV
+definitions.
+11. Set *Lambda handler* to `update.lambda_handler`
+12. Under *Basic Settings*, set *Timeout* to **5 minutes** and *Memory* to
 **512**
-12. Save and test your function.  If prompted for test data, just use
+13. Save and test your function.  If prompted for test data, just use
 the default provided.
 
 ### AV Scanner Lambda
@@ -125,18 +127,10 @@ the default provided.
 1. Create the archive using the method in the
  [Build from Source](#build-from-source) section.
 2. From the AWS Lambda Dashboard, click **Create function**
-3. Choose **Author from scratch** on the *Select Blueprint* page
-4. Add a new trigger of type **S3 Event** using `ObjectCreate(all)`.
-5. Name your function `bucket-antivirus-function` when prompted on the
-*Configure function* step.
-6. Set *Runtime* to `Python 2.7`
-7. Choose **Upload a ZIP file** for *Code entry type* and select the archive
-created in step 1.
-7. Add a single environment variable named `AV_DEFINITION_S3_BUCKET`
-and set its value to the name of the bucket created to store your AV
-definitions.
-8. Set *Lambda handler* to `scan.lambda_handler`
-9.  Create a new role name `bucket-antivirus-function` that uses the
+3. Choose **Author from scratch** on the *Create function* page
+4. Name your function `bucket-antivirus-function`
+5. Set *Runtime* to `Python 2.7`
+6.  Create a new role name `bucket-antivirus-function` that uses the
 following policy document
 ```json
 {
@@ -161,9 +155,17 @@ following policy document
    ]
 }
 ```
-10. Before finishing, set *Timeout* to **5 minutes** and *Memory* to
+7. Click *next* to head to the Configuration page
+8. Add a new trigger of type **S3 Event** using `ObjectCreate(all)`.
+9. Choose **Upload a ZIP file** for *Code entry type* and select the archive
+created in step 1.
+10. Set *Lambda handler* to `scan.lambda_handler`
+11. Add a single environment variable named `AV_DEFINITION_S3_BUCKET`
+and set its value to the name of the bucket created to store your AV
+definitions. If your bucket is `s3://my-bucket`, the value should be `my-bucket`.
+12. Under *Basic settings*, set *Timeout* to **5 minutes** and *Memory* to
 **1024**
-11. Save the function.  Testing is easiest performed by uploading a
+13. Save the function.  Testing is easiest performed by uploading a
 file to the bucket configured as the trigger in step 4.
 
 ### S3 Events
@@ -191,7 +193,7 @@ the table below for reference.
 | AV_DEFINITION_S3_PREFIX | Prefix for antivirus definition files | clamav_defs | No |
 | AV_DEFINITION_PATH | Path containing files at runtime | /tmp/clamav_defs | No |
 | AV_SCAN_START_SNS_ARN | SNS topic ARN to publish notification about start of scan | | No |
-| AV_SCAN_START_METADATA | The tag/metada indicating the start of the scan | av-scan-start | No |
+| AV_SCAN_START_METADATA | The tag/metadata indicating the start of the scan | av-scan-start | No |
 | AV_STATUS_CLEAN | The value assigned to clean items inside of tags/metadata | CLEAN | No |
 | AV_STATUS_INFECTED | The value assigned to clean items inside of tags/metadata | INFECTED | No |
 | AV_STATUS_METADATA | The tag/metadata name representing file's AV status | av-status | No |
@@ -202,7 +204,7 @@ the table below for reference.
 | FRESHCLAM_PATH | Path to ClamAV freshclam binary | ./bin/freshclam | No |
 | DATADOG_API_KEY | API Key for pushing metrics to DataDog (optional) | | No |
 | AV_PROCESS_ORIGINAL_VERSION_ONLY | Controls that only original version of an S3 key is processed (if bucket versioning is enabled) | False | No |
-
+| AV_DELETE_INFECTED_FILES | Controls whether infected files should be automatically deleted | False | No |
 
 ## S3 Bucket Policy Examples
 
