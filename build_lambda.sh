@@ -29,7 +29,6 @@ virtualenv env
 pip install -r requirements.txt
 rm -rf /root/.cache/pip
 
-yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 pushd /tmp
 yumdownloader -x \*i686 --archlist=x86_64 clamav clamav-lib clamav-update json-c pcre2
 rpm2cpio clamav-0*.rpm | cpio -idmv
