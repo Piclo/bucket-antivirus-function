@@ -19,15 +19,15 @@ lambda_output_file=/opt/app/build/lambda.zip
 set -e
 
 yum update -y
-yum install -y cpio python2-pip yum-utils zip
 yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+mkdir -p "${lambda_output_file%/*}"
+yum install -y yum-utils cpio python27-pip python-pip zip
 pip install --no-cache-dir virtualenv
 virtualenv env
 . env/bin/activate
 # This had --no-cache-dir, tracing through multiple tickets led to a problem in wheel
 pip install -r requirements.txt
 rm -rf /root/.cache/pip
-
 pushd /tmp
 yumdownloader -x \*i686 --archlist=x86_64 clamav clamav-lib clamav-update json-c pcre2
 rpm2cpio clamav-0*.rpm | cpio -idmv
@@ -35,6 +35,7 @@ rpm2cpio clamav-lib*.rpm | cpio -idmv
 rpm2cpio clamav-update*.rpm | cpio -idmv
 rpm2cpio json-c*.rpm | cpio -idmv
 rpm2cpio pcre*.rpm | cpio -idmv
+
 popd
 mkdir -p bin
 cp /tmp/usr/bin/clamscan /tmp/usr/bin/freshclam /tmp/usr/lib64/* bin/.
