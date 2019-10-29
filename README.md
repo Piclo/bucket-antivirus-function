@@ -87,6 +87,7 @@ following policy document
        "Version":"2012-10-17",
        "Statement":[
           {
+             "Sid":"WriteCloudWatchLogs",
              "Effect":"Allow",
              "Action":[
                 "logs:CreateLogGroup",
@@ -96,6 +97,7 @@ following policy document
              "Resource":"*"
           },
           {
+             "Sid":"s3GetAndPutWithTagging",
              "Action":[
                 "s3:GetObject",
                 "s3:GetObjectTagging",
@@ -104,7 +106,18 @@ following policy document
                 "s3:PutObjectVersionTagging"
              ],
              "Effect":"Allow",
-             "Resource":"arn:aws:s3:::<bucket-name>/*"
+             "Resource":[
+                "arn:aws:s3:::<av-definition-s3-bucket>/*"
+             ]
+          },
+          {
+             "Sid": "s3HeadObject",
+             "Effect": "Allow",
+             "Action": "s3:ListBucket",
+             "Resource": [
+                 "arn:aws:s3:::<av-definition-s3-bucket>/*",
+                 "arn:aws:s3:::<av-definition-s3-bucket>"
+             ]
           }
        ]
     }
@@ -140,6 +153,7 @@ following policy document
        "Version":"2012-10-17",
        "Statement":[
           {
+             "Sid":"WriteCloudWatchLogs",
              "Effect":"Allow",
              "Action":[
                 "logs:CreateLogGroup",
@@ -149,11 +163,13 @@ following policy document
              "Resource":"*"
           },
           {
+             "Sid":"s3AntiVirusScan",
              "Action":[
                 "s3:GetObject",
                 "s3:GetObjectTagging",
+                "s3:GetObjectVersion",
                 "s3:PutObjectTagging",
-                "s3:PutObjectVersionTagging",
+                "s3:PutObjectVersionTagging"
              ],
              "Effect":"Allow",
              "Resource": [
@@ -162,9 +178,10 @@ following policy document
              ]
           },
           {
+             "Sid":"s3AntiVirusDefinitions",
              "Action":[
                 "s3:GetObject",
-                "s3:GetObjectTagging",
+                "s3:GetObjectTagging"
              ],
              "Effect":"Allow",
              "Resource": [
@@ -172,8 +189,9 @@ following policy document
              ]
           },
           {
+             "Sid":"kmsDecrypt",
              "Action":[
-                "kms:Decrypt",
+                "kms:Decrypt"
              ],
              "Effect":"Allow",
              "Resource": [
@@ -182,13 +200,23 @@ following policy document
              ]
           },
           {
-             "Action":[
-                "sns:Publish",
+             "Sid":"snsPublish",
+             "Action": [
+                "sns:Publish"
              ],
              "Effect":"Allow",
              "Resource": [
                "arn:aws:sns:::<av-scan-start>",
                "arn:aws:sns:::<av-status>"
+             ]
+          },
+          {
+             "Sid":"s3HeadObject",
+             "Effect":"Allow",
+             "Action":"s3:ListBucket",
+             "Resource":[
+                 "arn:aws:s3:::<av-definition-s3-bucket>/*",
+                 "arn:aws:s3:::<av-definition-s3-bucket>"
              ]
           }
        ]
