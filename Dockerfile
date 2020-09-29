@@ -1,10 +1,9 @@
-FROM docker-upgrade.artifactory.build.upgrade.com/container-base:2.0.20200406.0-205
+FROM amazonlinux:2
 
 # Set up working directories
 USER root
 RUN mkdir /app
-RUN chown -R upgrade /app
-USER upgrade
+RUN chown -R root /app
 RUN mkdir -p /app/build
 RUN mkdir -p /app/bin
 
