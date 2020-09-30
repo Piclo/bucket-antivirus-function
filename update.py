@@ -34,7 +34,7 @@ def lambda_handler(event, context):
     start_time = datetime.utcnow()
     print("Script starting at %s\n" % (start_time.strftime("%Y/%m/%d %H:%M:%S UTC")))
 
-    shutil.rmtree(AV_DEFINITION_PATH)
+    shutil.rmtree(AV_DEFINITION_PATH, ignore_errors=True)
     os.mkdir(AV_DEFINITION_PATH)
 
     to_download = clamav.update_defs_from_s3(
