@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-LINUX_DOCKER_IMAGE:=docker-upgrade.artifactory.build.upgrade.com/container-base:2.0.20190212-15
+LINUX_DOCKER_IMAGE:=amazonaws/2
 current_dir := $(shell pwd)
 container_dir := /app
 circleci := ${CIRCLECI}
