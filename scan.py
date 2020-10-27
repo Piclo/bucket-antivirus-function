@@ -16,7 +16,7 @@
 import copy
 import json
 import os
-import urllib
+from urllib.parse import unquote_plus
 from distutils.util import strtobool
 
 import boto3
@@ -40,6 +40,9 @@ from common import AV_TIMESTAMP_METADATA
 from common import create_dir
 from common import get_timestamp
 
+from upgrade_common import IS_AV_ENABLED
+from upgrade_mime_check import is_mime_valid
+from upgrade_sns import sns_message_attributes
 
 def event_object(event, event_source="s3"):
 
@@ -66,7 +69,7 @@ def event_object(event, event_source="s3"):
     key_name = s3_obj["object"].get("key", None)
 
     if key_name:
-        key_name = urllib.unquote_plus(key_name.encode("utf8"))
+        key_name = unquote_plus(key_name)
 
     # Ensure both bucket and key exist
     if (not bucket_name) or (not key_name):
@@ -87,15 +90,22 @@ def verify_s3_object_version(s3, s3_object):
         bucket = s3.Bucket(s3_object.bucket_name)
         versions = list(bucket.object_versions.filter(Prefix=s3_object.key))
         if len(versions) > 1:
-            raise Exception(
-                "Detected multiple object versions in %s.%s, aborting processing"
-                % (s3_object.bucket_name, s3_object.key)
-            )
+            #raise Exception(
+            print(
+                 "Detected multiple object versions in %s.%s, aborting processing"
+                 % (s3_object.bucket_name, s3_object.key)
+             )
+            return False
+        else:
+            print("Detected only 1 object version in %s.%s, proceeding with processing" % (s3_object.bucket_name, s3_object.key))
+            return True
     else:
         # misconfigured bucket, left with no or suspended versioning
-        raise Exception(
+        #raise Exception(
+        print(
             "Object versioning is not enabled in bucket %s" % s3_object.bucket_name
         )
+        return False
 
 
 def get_local_path(s3_object, local_prefix):
@@ -162,6 +172,7 @@ def sns_start_scan(sns_client, s3_object, scan_start_sns_arn, timestamp):
         TargetArn=scan_start_sns_arn,
         Message=json.dumps({"default": json.dumps(message)}),
         MessageStructure="json",
+        MessageAttributes=sns_message_attributes(s3_object)
     )
 
 
@@ -188,14 +199,15 @@ def sns_scan_results(
         TargetArn=sns_arn,
         Message=json.dumps({"default": json.dumps(message)}),
         MessageStructure="json",
-        MessageAttributes={
-            AV_STATUS_METADATA: {"DataType": "String", "StringValue": scan_result},
-            AV_SIGNATURE_METADATA: {
-                "DataType": "String",
-                "StringValue": scan_signature,
-            },
-        },
+        MessageAttributes=sns_message_attributes(s3_object, scan_result, scan_signature),
     )
+
+
+def scan_file(s3_object, file_path):
+    if not is_mime_valid(s3_object, file_path):
+        return AV_STATUS_INFECTED, "Invalid Mime type"
+
+    return clamav.scan_file(file_path)
 
 
 def lambda_handler(event, context):
@@ -212,28 +224,33 @@ def lambda_handler(event, context):
     s3_object = event_object(event, event_source=EVENT_SOURCE)
 
     if str_to_bool(AV_PROCESS_ORIGINAL_VERSION_ONLY):
-        verify_s3_object_version(s3, s3_object)
+        if not verify_s3_object_version(s3, s3_object):
+            return
 
     # Publish the start time of the scan
     if AV_SCAN_START_SNS_ARN not in [None, ""]:
         start_scan_time = get_timestamp()
         sns_start_scan(sns_client, s3_object, AV_SCAN_START_SNS_ARN, start_scan_time)
 
-    file_path = get_local_path(s3_object, "/tmp")
-    create_dir(os.path.dirname(file_path))
-    s3_object.download_file(file_path)
+    if str_to_bool(IS_AV_ENABLED):
+        file_path = get_local_path(s3_object, "/tmp")
+        create_dir(os.path.dirname(file_path))
+        s3_object.download_file(file_path)
 
-    to_download = clamav.update_defs_from_s3(
-        s3_client, AV_DEFINITION_S3_BUCKET, AV_DEFINITION_S3_PREFIX
-    )
+        to_download = clamav.update_defs_from_s3(
+            s3_client, AV_DEFINITION_S3_BUCKET, AV_DEFINITION_S3_PREFIX
+        )
 
-    for download in to_download.values():
-        s3_path = download["s3_path"]
-        local_path = download["local_path"]
-        print("Downloading definition file %s from s3://%s" % (local_path, s3_path))
-        s3.Bucket(AV_DEFINITION_S3_BUCKET).download_file(s3_path, local_path)
-        print("Downloading definition file %s complete!" % (local_path))
-    scan_result, scan_signature = clamav.scan_file(file_path)
+        for download in to_download.values():
+            s3_path = download["s3_path"]
+            local_path = download["local_path"]
+            print("Downloading definition file %s from s3://%s" % (local_path, s3_path))
+            s3.Bucket(AV_DEFINITION_S3_BUCKET).download_file(s3_path, local_path)
+            print("Downloading definition file %s complete!" % (local_path))
+        scan_result, scan_signature = scan_file(s3_object, file_path)
+    else:
+        print("NOOP - returning AV_STATUS_CLEAN")
+        scan_result = AV_STATUS_CLEAN
     print(
         "Scan of s3://%s resulted in %s\n"
         % (os.path.join(s3_object.bucket_name, s3_object.key), scan_result)
@@ -261,7 +278,8 @@ def lambda_handler(event, context):
     )
     # Delete downloaded file to free up room on re-usable lambda function container
     try:
-        os.remove(file_path)
+        if file_path is not None:
+            os.remove(file_path)
     except OSError:
         pass
     if str_to_bool(AV_DELETE_INFECTED_FILES) and scan_result == AV_STATUS_INFECTED:

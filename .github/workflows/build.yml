@@ -1,0 +1,16 @@
+name: S3 antivirus build
+'on':
+  pull_request:
+    paths:
+    - "**"
+  push:
+    branches:
+    - master
+    paths:
+    - "**"
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+    - run: make all
