@@ -25,10 +25,7 @@ all: archive  ## Build the entire project
 
 .PHONY: clean
 clean:  ## Clean build artifacts
-	rm -rf bin/
-	rm -rf build/
-	rm -rf tmp/
-	rm -f .coverage
+	rm -rf bin/ build/ tmp/ .coverage
 	find ./ -type d -name '__pycache__' -delete
 	find ./ -type f -name '*.pyc' -delete
 
