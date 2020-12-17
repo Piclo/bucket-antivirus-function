@@ -51,9 +51,6 @@ COPY requirements.txt ./
 RUN python3.7 -m venv .venv && \
     .venv/bin/pip install --no-cache -r requirements.txt
 
-# Create the zip file
-COPY *.py ./
-RUN mkdir -p build && \
-    zip -r9 --exclude="*test*" /app/build/lambda.zip *.py bin && \
-    cd .venv/lib/python3.7/site-packages && \
-    zip -r9 /app/build/lambda.zip *
+# Set entry point
+COPY entrypoint.sh /usr/local/bin/
+ENTRYPOINT [ "/usr/local/bin/entrypoint.sh" ]

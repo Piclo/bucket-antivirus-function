@@ -25,7 +25,7 @@ all: archive  ## Build the entire project
 
 .PHONY: clean
 clean:  ## Clean build artifacts
-	rm -rf bin/ build/ tmp/ .coverage
+	rm -rf bin/ build/ tmp/ .coverage lambda.zip
 	find ./ -type d -name '__pycache__' -delete
 	find ./ -type f -name '*.pyc' -delete
 
@@ -33,7 +33,7 @@ clean:  ## Clean build artifacts
 archive: clean  ## Create the archive for AWS lambda
 	docker build -t bucket-antivirus-function:latest .
 	mkdir -p ./build/
-	docker run -v $(current_dir)/build:/opt/mount --rm --entrypoint cp bucket-antivirus-function:latest ${container_dir}/build/lambda.zip /opt/mount/lambda.zip
+	docker run -v $(CURDIR):/src --rm bucket-antivirus-function:latest /src/lambda.zip
 
 .PHONY: pre_commit_install  ## Ensure that pre-commit hook is installed and kept up to date
 pre_commit_install: .git/hooks/pre-commit ## Ensure pre-commit is installed
